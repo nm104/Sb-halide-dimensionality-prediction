@@ -6,7 +6,7 @@ Two figures:
                                 drawn as a reference line.
   llm_allshot_gain.png         diverging bars -- (all-shot minus 12-shot) per condition.
 
- --llm-results results_llm/llm_results.csv
+  --llm-results results_llm/llm_results.csv
 """
 import argparse
 from pathlib import Path
@@ -160,8 +160,85 @@ def plot_by_representation(df: pd.DataFrame, ml_baseline: float, out: Path, colo
     print(f"Saved {out}")
 
 
+def plot_by_representation_improved(df: pd.DataFrame, ml_baseline: float, out: Path):
+    """A cleaner version of the publication figure with stronger emphasis on the best ML reference line."""
+    score = df.set_index(["model", "representation", "prompting"]).macro_f1
+    models = list(df.model.cat.categories)
+    fig, axes = plt.subplots(1, 2, figsize=(15.4, 7.2), sharey=True)
+    fig.patch.set_facecolor("#ffffff")
+
+    x = np.arange(len(models))
+    width = 0.24
+    palette = SEQUENTIAL_PALETTES["selected_gray_blue_navy"]
+    condition_order = [(key, label, color) for (key, label, _), color in zip(PROMPTING, palette)]
+
+    for ax, representation, title in zip(axes, ["name", "smiles"], ["IUPAC name input", "SMILES input"]):
+        ax.set_facecolor("#ffffff")
+        for offset, (key, label, color) in zip([-width, 0.0, width], condition_order):
+            vals = [score.get((model, representation, key), np.nan) for model in models]
+            bars = ax.bar(
+                x + offset,
+                vals,
+                width=0.22,
+                color=color,
+                edgecolor="white",
+                linewidth=0.8,
+                alpha=0.96,
+                label=label,
+                zorder=3,
+            )
+            for bar, value in zip(bars, vals):
+                if np.isfinite(value):
+                    ax.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        value + 0.010,
+                        f"{value:.3f}",
+                        ha="center",
+                        va="bottom",
+                        fontsize=10.5,
+                        color=INK,
+                    )
+
+        ax.axhline(ml_baseline, color=INK_SOFT, lw=1.4, ls=(0, (5, 3)), zorder=2)
+        ax.text(
+            1.01,
+            ml_baseline,
+            f"best ML\n{ml_baseline:.3f}",
+            transform=ax.get_yaxis_transform(),
+            ha="left",
+            va="center",
+            fontsize=12.5,
+            color=INK_SOFT,
+            style="italic",
+        )
+        ax.set_title(title, fontsize=18, pad=14, loc="left")
+        ax.set_xticks(x)
+        ax.set_xticklabels(models, fontsize=13)
+        ax.set_ylim(0.30, 0.86)
+        ax.tick_params(axis="y", labelsize=13)
+        style_axes(ax)
+
+    axes[0].set_ylabel("test macro-F1", fontsize=16)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=3,
+        frameon=False,
+        title="prompting condition",
+        title_fontsize=16,
+        fontsize=12.5,
+        bbox_to_anchor=(0.5, 0.99),
+    )
+    fig.suptitle("LLM performance across prompting conditions and cation representations", fontsize=19, y=0.97)
+    fig.subplots_adjust(left=0.07, right=0.95, top=0.84, bottom=0.14, wspace=0.12)
+    fig.savefig(out, dpi=200, facecolor="#ffffff", bbox_inches="tight")
+    print(f"Saved {out}")
+
+
 def plot_dot_by_representation(df: pd.DataFrame, ml_baseline: float, out: Path, colors):
-   
+    
     score = df.set_index(["model", "representation", "prompting"]).macro_f1
     models = list(df.model.cat.categories)
     x = np.arange(len(models))
@@ -296,6 +373,7 @@ def main():
         df, ml_baseline, figures / "llm_results_by_representation_final.png",
         SEQUENTIAL_PALETTES["selected_gray_blue_navy"],
     )
+    plot_by_representation_improved(df, ml_baseline, figures / "llm_results_by_representation_final_improved.png")
     plot_dot_by_representation(df, ml_baseline, figures / "llm_results_dot_zoomed.png", SEQUENTIAL_PALETTES["selected_gray_blue_navy"])
     plot_line_by_representation(df, ml_baseline, figures / "llm_results_line_zoomed.png", SEQUENTIAL_PALETTES["selected_gray_blue_navy"])
     plot_prompting_heatmap(df, ml_baseline, figures / "llm_prompting_heatmap.png")
