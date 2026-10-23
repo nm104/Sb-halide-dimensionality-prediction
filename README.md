@@ -380,3 +380,4 @@ python figures/figure_5/make_figure_5.py
 
 The combined figure (`figure_5.png`/`.pdf`) is written to
 `figures/figure_5/output/`.
+plot_by_representation_improved(df, ml_baseline, Path("figures/llm_results_by_representation_final_improved.pdf"))
